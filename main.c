@@ -5,7 +5,7 @@
 
 
 //DATA STRUCTURE IN MEMORY
-struct processes {
+struct processes{
     int pid; //Process ID
     int arrival_time; //Time of arrival
     int total_CPU_time; //Total execution time
@@ -55,7 +55,7 @@ void readFile(){
     char *str; //To store the text contained in each line
     const char truncate[2] = " "; //In-line separator
     char *token; //To store the token for each line
-    int output_parameter = 0; //To traverse through the different output parameters (i.e., execution time, etc.)
+    int output_parameter = 0; //To traverse through the different output parameters (i.e., execution time, etc.) Set to zero for first word
     int word_position = 0; //To traverse through the words in each line
 
     FILE* file = fopen("C:\\Users\\benni\\CLionProjects\\SYSC4001-Assignment1.2\\tester.txt", "r"); //Open input file, and read, "r", it
@@ -73,12 +73,30 @@ void readFile(){
             int int_token = atoi(token); //Converts string to integer representation
 
             if (output_parameter == 0){
-                input_line[word_position].PID = int_token;
+                input_file[word_position].pid = int_token;
             }
+            else if (output_parameter == 1){
+                input_file[word_position].arrival_time = int_token;
+            }
+            else if (output_parameter == 2){
+                input_file[word_position].total_CPU_time = int_token;
+            }
+
+//          NOTE:- PRIORITY NOT NEEDED
+//            else if (output_parameter == 3){
+//                input_file[word_position].some_priority_method = int_token;
+//            }
+
+            token = strtok(NULL, truncate); //Reset token
+            output_parameter++; //Increment output parameter counter
+
         }
 
-    }
+        output_parameter = 0; //Reset output parameter ctr
+        word_position++; //Increment word position
 
+    }
+    fclose(file);
 
     //some code...
 }
