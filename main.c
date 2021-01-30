@@ -20,16 +20,14 @@ void scheduler(); //Schedules jobs, first in - first out
 void readFile(); //To parse input file
 void writeFile(); //To write our output
 
-int main() {
+int main(int argc, char* argv[]) {
     readFile();
+    writeFile();
+    return 0;
     //some code...
 }
 
 
-//FUNCTION TO SCHEDULE OUR JOBS (FIFO)
-void scheduler(){
-    //some code...
-}
 
 void numberOfProcesses(){
     processCtr = 0;
@@ -103,7 +101,9 @@ void readFile(){
 
 void writeFile(){
     printf("Transition time:-\t PID:-\t Old State:-\t New State:-");
-
+    for (int i = 0; i < 3; i++){
+        printf("\n %i\t %i\t %i", input_file[i].pid, input_file[i].arrival_time, input_file[i].total_CPU_time);
+    }
     //some code...
 }
 
