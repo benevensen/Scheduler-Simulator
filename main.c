@@ -34,7 +34,7 @@ void scheduler(){
 void numberOfProcesses(){
     processCtr = 0;
 
-    FILE* file = fopen("C:\Users\benni\CLionProjects\SYSC4001-Assignment1.2\tester.txt");
+    FILE* file = fopen("C:\\Users\\benni\\CLionProjects\\SYSC4001-Assignment1.2\\tester.txt", "r");
     if(file == NULL){ //Check for file
         perror("Could not open file.");
         exit(1);
