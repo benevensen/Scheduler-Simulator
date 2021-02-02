@@ -33,26 +33,37 @@ typedef struct Node
 
 }Node_t;
 
-struct Queue {
+typedef struct Queue {
     Node_t* Head;
     Node_t* Tail;
     int size;
-};
+}Queue_t;
 
 struct Queue ReadyQueue;
 
-void initReadyQueue();
+Queue_t* initReadyQueue();
 
-void initReadyQueue(){
-    ReadyQueue.Head = NULL;
-    ReadyQueue.Tail = NULL;
-    ReadyQueue.size = 0;
+void cleanReadyQueue();
+
+Queue_t* initReadyQueue(){
+
+    Queue_t * ReadyQueue = (Queue_t *) malloc(sizeof(Queue_t));
+
+    ReadyQueue->Head = NULL;
+    ReadyQueue->Tail = NULL;
+    ReadyQueue->size = 0;
+
+    return ReadyQueue;
 }
 
-void enqueue();
+void cleanReadyQueue(Queue_t* ReadyQueue){
+    free(ReadyQueue);
+}
 
-void enqueue(struct process* process){
-    if (ReadyQueue.Tail == NULL)
+void enqueue(Queue_t* ReadyQueue, struct process* process);
+
+void enqueue(Queue_t* ReadyQueue, struct process* process){
+    if (ReadyQueue->Tail == NULL)
     {
        /*  printf(" IN ENQUEUE FOR EMPTY QUEUE \n"); */
         //Node_t new_node;
@@ -62,16 +73,16 @@ void enqueue(struct process* process){
         node->process = process;
         node->Next = NULL;
 
-        ReadyQueue.Head = (Node_t *) node;
-        ReadyQueue.Tail = (Node_t *) node;
-        ReadyQueue.size++;
+        ReadyQueue->Head = (Node_t *) node;
+        ReadyQueue->Tail = (Node_t *) node;
+        ReadyQueue->size++;
 
        /*  printf("Size is currently %d \n", ReadyQueue.size);
         printf("Enqueued process id %d \n", node->process->pid);
         printf("Current tail is porcess %d \n", ReadyQueue.Tail->process->pid);
         printf("Current head is porcess %d \n", ReadyQueue.Head->process->pid); */
     }
-    else if (ReadyQueue.Tail == NULL)
+    else if (ReadyQueue->Tail == NULL)
     {
         exit(-1);
     }
@@ -88,9 +99,9 @@ void enqueue(struct process* process){
         node->process = process;
         node->Next = NULL;
 
-        ReadyQueue.Tail->Next = (Node_t *) node;
-        ReadyQueue.Tail = node;
-        ReadyQueue.size++;
+        ReadyQueue->Tail->Next = (Node_t *) node;
+        ReadyQueue->Tail = node;
+        ReadyQueue->size++;
        /*  printf("Size is currently %d \n", ReadyQueue.size);
         printf("Enqueued process id %d \n", node->process->pid);
         printf("Current tail is porcess %d \n", ReadyQueue.Tail->process->pid);
@@ -98,10 +109,10 @@ void enqueue(struct process* process){
     }
 }
 
-struct process dequeue();
+struct process dequeue(Queue_t* ReadyQueue);
 
-struct process dequeue(){
-    if( ReadyQueue.Head == NULL || ReadyQueue.size == 0){
+struct process dequeue(Queue_t* ReadyQueue){
+    if( ReadyQueue->Head == NULL || ReadyQueue->size == 0){
        /*  printf(" IN DEQUEUE FOR EMPTY QUEUE \n"); */
 
         printf("Error nothing is in the queue, Returning an empty process");
@@ -110,19 +121,19 @@ struct process dequeue(){
 
         //printf(" IN DEQUEUE FOR NONE EMPTY QUEUE \n");
 
-        struct process frontProcess = *(ReadyQueue.Head->process);
+        struct process frontProcess = *(ReadyQueue->Head->process);
 
        // printf("dequeued process id %d \n", frontProcess.pid);
 
         /* printf("old head process id %d \n", ReadyQueue.Head->process->pid); */
 
-        Node_t * ptr = ReadyQueue.Head;
+        Node_t * ptr = ReadyQueue->Head;
 
-        if(ReadyQueue.Head != ReadyQueue.Tail){
-            ReadyQueue.Head = ReadyQueue.Head->Next;
+        if(ReadyQueue->Head != ReadyQueue->Tail){
+            ReadyQueue->Head = ReadyQueue->Head->Next;
         }
 
-        ReadyQueue.size--;
+        ReadyQueue->size--;
 
         
 
@@ -137,6 +148,12 @@ struct process dequeue(){
 
         return frontProcess;
     }
+}
+
+int getQueueSize(Queue_t* ReadyQueue);
+
+int getQueueSize(Queue_t* ReadyQueue){
+    return ReadyQueue->size;
 }
 
 
