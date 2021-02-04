@@ -178,7 +178,7 @@ int clock = 0; //current clock of the system
  */
 
 void scheduler(); //Schedules jobs, first in - first out
-void readInputFile(struct process* processes); //To parse input file
+void readInputFile(struct process* processes, char* inputFile); //To parse input file
 void writeFile(); //To write our output
 
 FILE* outputFileInit();
@@ -204,15 +204,51 @@ int main(int argc, char* argv[]) {
 
     //testing my queue implementation
 
+    printf("here0\n");
+
+    char inputFileName[20];
+    char outputFileName[20];
+
+    printf("here1\n");
+    printf("%d\n", argc);
+    printf("%s\n", argv[0]);
+
+    //no command line argument given -> uses default names for input and output files
+    if( argc == 1){
+        strcpy(inputFileName, "input.txt");
+        strcpy(outputFileName, "output.txt");
+
+    //1 command line argument given -> uses given name for input file and uses default name for output file
+    }else if (argc == 2){
+        strcpy(inputFileName, argv[1]);
+        strcpy(outputFileName, "output.txt");
+
+    }else if (argc == 3){
+    //2 command line argument given -> uses first given name for input file and second given name for output file
+        strcpy(inputFileName, argv[1]);
+        strcpy(outputFileName, argv[2]);
+
+    // exits if there is too much command line arguments
+    }else {
+        printf("too many arguments!\n");
+        exit(-1);
+    }
+
+        printf("here2\n");
+        printf("input file : %s \n", inputFileName);
+        printf("output file : %s \n", outputFileName);
+
     Queue_t* ReadyQueue = initReadyQueue();
 
-    int numberOfProcesses = countNumberOfProcesses();
+    int numberOfProcesses = countNumberOfProcesses(inputFileName);
 
+printf("here3\n");
     printf("number of processes is %d\n", numberOfProcesses);
     
     struct process* processes = (struct process *) malloc( sizeof(struct process) * numberOfProcesses); //Allocate memory for all process
-    readInputFile(processes);
+    readInputFile(processes, inputFileName);
 
+    printf("here4\n");
     int clock = 0;
     int IO_Duration = processes[0].IO_duration;  // Due to the assumption that processes will have the same duration
 
@@ -220,8 +256,9 @@ int main(int argc, char* argv[]) {
 
     //**********************************
 
-    FILE* outputFile = outputFileInit();
+    FILE* outputFile = outputFileInit(outputFileName);
 
+    printf("here5\n");
     //running process swap needs to include setting the IO frequency and the making sure the next switch happens at the next iteration of the while loop
 
     int RunningProcess_IO_Frequency = -1;
@@ -233,8 +270,8 @@ int main(int argc, char* argv[]) {
 
     while (!isDone(processes, numberOfProcesses))
     {
-        printf("count is %d \n", count++);
-        getchar();
+        printf("count is %d !!\n", count++);
+        //getchar(); 
         if( getQueueSize(ReadyQueue) > 0 &&  RunningProcess_ID == -1){
             struct process* process = dequeue(ReadyQueue);
 
@@ -393,9 +430,14 @@ int main(int argc, char* argv[]) {
     //some code...
 }
 
-FILE* outputFileInit(){
+FILE* outputFileInit(char* outputFile){
 
-    FILE* outputFIle = fopen("output.txt", "w"); // opens file in current working directory
+    printf("making output file with name %s \n", outputFile);
+
+    FILE* outputFIle = fopen(outputFile, "w"); // opens file in current working directory
+
+    printf("made output file with name %s \n", outputFile);
+
     if(outputFIle == NULL){ //Check for file
         perror("Could not open file.");
         exit(1);
@@ -419,10 +461,10 @@ void printTransition(FILE* outputFile, int clock, struct process process, States
  FUNCTION THAT COUNTS THE NUMBER OF process IN INPUT FILE 
  AND MAKES AN ARRAY OF PROCESS STRUCTS SIZED TO THE COUNT
  */
-int countNumberOfProcesses(){
+int countNumberOfProcesses(char* inputFile){
     int processCtr = 0;
 
-    FILE* file = fopen("input.txt", "r"); // opens file in current working directory
+    FILE* file = fopen(inputFile, "r"); // opens file in current working directory
     
     if(file == NULL){ //Check for file
         perror("Could not open file.");
@@ -481,7 +523,7 @@ void writeFile(){
 } */
 
 //FUNCTION TO PARSE OUR .TXT FILES
-void readInputFile(struct process* processes){
+void readInputFile(struct process* processes, char* inputFile){
     char *str; //To store the text contained in each line
     const char truncate[2] = " "; //In-line separator
     char *token; //To store the token for each line
@@ -490,7 +532,8 @@ void readInputFile(struct process* processes){
 
     /* numberOfprocess(); */
 
-    FILE* file = fopen("input.txt", "r"); //Open input file in current working directory, and read, "r", it
+    //FILE* file = fopen("input.txt", "r"); //Open input file in current working directory, and read, "r", it
+    FILE* file = fopen(inputFile, "r");
 
     if(file == NULL){
         perror("Could not open file.");
