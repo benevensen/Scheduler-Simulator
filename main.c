@@ -18,8 +18,11 @@ struct process{
     int pid; //Process ID
     int arrival_time; //Time of arrival
     int total_CPU_time; //Total execution time
+    int current_CPU_time_needed; //amount of CPU time needed to finish the task
     int IO_frequency; //How frequently IO is accessed
+    int current_time_until_IO; // amount of time until I/O is needed by the process
     int IO_duration; //How long IO is accessed
+    int current_time_until_IO_is_finished; //amount of time until I/O is needed by the process
     States state; //Current state of a process
 };
 
@@ -236,7 +239,7 @@ int main(int argc, char* argv[]) {
             struct process* process = dequeue(ReadyQueue);
 
             RunningProcess_ID = process->pid;
-            time_until_IO = process->IO_frequency;
+            process->current_time_until_IO = process->IO_frequency;
 
             States prevState = process->state;
 
@@ -271,16 +274,16 @@ int main(int argc, char* argv[]) {
 
                 printf("time_until_IO is %d \n", time_until_IO);
 
-                processes[i].total_CPU_time--;
+                processes[i].current_CPU_time_needed--;
 
-                if(processes[i].total_CPU_time == 0){
+                if(processes[i].current_CPU_time_needed == 0){
                     States prevState = processes[i].state;
 
                     processes[i].state = TERMINATED;
                     RunningProcess_ID = -1;
 
                     printTransition(outputFile, clock, processes[i], prevState);
-                }else if(time_until_IO == 0)
+                }else if(processes[i].current_time_until_IO == 0)
                 {
                     States prevState = processes[i].state;
 
@@ -291,14 +294,14 @@ int main(int argc, char* argv[]) {
                 }
                 else
                 {
-                    time_until_IO--;
+                    processes[i].current_time_until_IO--;
                 }
                 
             }
             else if (processes[i].state == WAITING)
             {
 
-                if (processes[i].IO_duration == 0)
+                if (processes[i].current_time_until_IO_is_finished == 0)
                 {
                     States prevState = processes[i].state;
 
@@ -309,7 +312,7 @@ int main(int argc, char* argv[]) {
                 }
                 else
                 {
-                    processes[i].IO_duration--;
+                    processes[i].current_time_until_IO_is_finished--;
                 }
             }
             // mechanism for switching the current running process is out of the for loop
@@ -524,6 +527,8 @@ void readInputFile(struct process* processes){
             else if (input_parameter == 5){
                 processes[process_position].state = NEW;
             }
+
+
             
 
 //          NOTE:- PRIORITY NOT NEEDED
@@ -537,6 +542,10 @@ void readInputFile(struct process* processes){
         }
 
      //   printf("number of process %ld\n",sizeof(input_file)/sizeof(input_file[0])); doesnt work because its a pointer with a struct
+        
+        processes[process_position].current_CPU_time_needed = processes[process_position].total_CPU_time;
+        processes[process_position].current_time_until_IO_is_finished = processes[process_position].IO_duration;
+        processes[process_position].current_time_until_IO = processes[process_position].IO_frequency;
         print_process_details(processes[process_position]);
         input_parameter = 0; //Reset output parameter ctr
         process_position++; //Increment word position
