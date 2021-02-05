@@ -591,16 +591,15 @@ void readInputFile(process_t *processes, char *inputFile)
             {
                 processes[process_position].IO_duration = int_token;
             }
-            else if (input_parameter == 5)
-            {
-                //sets new processes to initially be in a NEW state
-                processes[process_position].state = NEW;
-            }
 
             token = strtok(NULL, truncate); //Reset token
             input_parameter++;              //Increment input parameter position counter
         }
 
+        //sets new processes to initially be in a NEW state
+        processes[process_position].state = NEW;
+
+        //initializes variables used to track cpu time, time until IO, and current IO duration
         processes[process_position].current_CPU_time_needed = processes[process_position].total_CPU_time;
         processes[process_position].current_time_until_IO_is_finished = processes[process_position].IO_duration;
         processes[process_position].current_time_until_IO = processes[process_position].IO_frequency;
