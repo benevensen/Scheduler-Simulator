@@ -14,7 +14,7 @@ typedef enum Process_State {
 } States;
 
 //DATA STRUCTURE IN MEMORY
-struct process{
+typedef struct process{
     int pid; //Process ID
     int arrival_time; //Time of arrival
     int total_CPU_time; //Total execution time
@@ -24,7 +24,7 @@ struct process{
     int IO_duration; //How long IO is accessed
     int current_time_until_IO_is_finished; //amount of time until I/O is needed by the process
     States state; //Current state of a process
-};
+} process_t;
 
 
 // ************************************************************
@@ -34,7 +34,7 @@ struct process{
 typedef struct Node
 {
     struct Node* Next;
-    struct process* process; 
+    process_t* process; 
 
 }Node_t;
 
@@ -65,12 +65,12 @@ void cleanReadyQueue(Queue_t* ReadyQueue){
     free(ReadyQueue);
 }
 
-void enqueue(Queue_t* ReadyQueue, struct process* process);
+void enqueue(Queue_t* ReadyQueue, process_t* process);
 
-void enqueue(Queue_t* ReadyQueue, struct process* process){
+void enqueue(Queue_t* ReadyQueue, process_t* process){
     if (ReadyQueue->Tail == NULL)
     {
-        printf(" IN ENQUEUE FOR EMPTY QUEUE \n");
+       /*  printf(" IN ENQUEUE FOR EMPTY QUEUE \n"); */
         //Node_t new_node;
        // Node_t *node = &new_node;
         Node_t *node = (Node_t*) malloc(sizeof(Node_t));
@@ -94,7 +94,7 @@ void enqueue(Queue_t* ReadyQueue, struct process* process){
     else
     {
 
-        printf(" IN ENQUEUE FOR NONE EMPTY QUEUE \n");
+       /*  printf(" IN ENQUEUE FOR NONE EMPTY QUEUE \n"); */
 
         /* Node_t new_node;
         Node_t *node = &new_node; */
@@ -114,9 +114,9 @@ void enqueue(Queue_t* ReadyQueue, struct process* process){
     }
 }
 
-struct process* dequeue(Queue_t* ReadyQueue);
+process_t* dequeue(Queue_t* ReadyQueue);
 
-struct process* dequeue(Queue_t* ReadyQueue){
+process_t* dequeue(Queue_t* ReadyQueue){
     if( ReadyQueue->Head == NULL || ReadyQueue->size == 0){
        /*  printf(" IN DEQUEUE FOR EMPTY QUEUE \n"); */
 
@@ -124,11 +124,11 @@ struct process* dequeue(Queue_t* ReadyQueue){
         exit(-1);
     }else{
 
-        printf(" IN DEQUEUE FOR NONE EMPTY QUEUE \n");
+       /*  printf(" IN DEQUEUE FOR NONE EMPTY QUEUE \n"); */
 
-       /*  struct process frontProcess = *(ReadyQueue->Head->process); */
+       /*  process_t frontProcess = *(ReadyQueue->Head->process); */
 
-        struct process* frontProcess = ReadyQueue->Head->process;
+        process_t* frontProcess = ReadyQueue->Head->process;
 
        // printf("dequeued process id %d \n", frontProcess.pid);
 
@@ -171,14 +171,14 @@ int getQueueSize(Queue_t* ReadyQueue){
 
 // ************************************************************
 
-/* struct process* input_file;
+/* process_t* input_file;
 int processCtr = 0; //How many process there are
 
 int clock = 0; //current clock of the system
  */
 
 void scheduler(); //Schedules jobs, first in - first out
-void readInputFile(struct process* processes, char* inputFile); //To parse input file
+void readInputFile(process_t* processes, char* inputFile); //To parse input file
 void writeFile(); //To write our output
 
 FILE* outputFileInit();
@@ -186,9 +186,9 @@ void outputFileCleanUp();
 void printTransition();
 
 const char * getStringFromState(States state);
-void print_process_details(struct process process);
-void printTransition(FILE* outputFile, int clock, struct process process, States prevState);
-bool isDone(struct process* processes, int processCount);
+void print_process_details(process_t process);
+void printTransition(FILE* outputFile, int clock, process_t process, States prevState);
+bool isDone(process_t* processes, int processCount);
 
 int countNumberOfProcesses();
 void cleanOutputFile(FILE* outputFile);
@@ -204,14 +204,14 @@ int main(int argc, char* argv[]) {
 
     //testing my queue implementation
 
-    printf("here0\n");
+    /* printf("here0\n"); */
 
     char inputFileName[20];
     char outputFileName[20];
 
-    printf("here1\n");
+    /* printf("here1\n");
     printf("%d\n", argc);
-    printf("%s\n", argv[0]);
+    printf("%s\n", argv[0]); */
 
     //no command line argument given -> uses default names for input and output files
     if( argc == 1){
@@ -234,46 +234,42 @@ int main(int argc, char* argv[]) {
         exit(-1);
     }
 
-        printf("here2\n");
+      /*   printf("here2\n");
         printf("input file : %s \n", inputFileName);
-        printf("output file : %s \n", outputFileName);
+        printf("output file : %s \n", outputFileName); */
 
     Queue_t* ReadyQueue = initReadyQueue();
 
     int numberOfProcesses = countNumberOfProcesses(inputFileName);
 
-printf("here3\n");
-    printf("number of processes is %d\n", numberOfProcesses);
+   /*  printf("here3\n");
+    printf("number of processes is %d\n", numberOfProcesses); */
     
-    struct process* processes = (struct process *) malloc( sizeof(struct process) * numberOfProcesses); //Allocate memory for all process
+    process_t* processes = (process_t *) malloc( sizeof(process_t) * numberOfProcesses); //Allocate memory for all process
     readInputFile(processes, inputFileName);
 
-    printf("here4\n");
+   /*  printf("here4\n"); */
     int clock = 0;
-    int IO_Duration = processes[0].IO_duration;  // Due to the assumption that processes will have the same duration
+    /* int IO_Duration = processes[0].IO_duration;  */ // Due to the assumption that processes will have the same duration
 
-    printf("IO duration is %d\n", IO_Duration);
+   /*  printf("IO duration is %d\n", IO_Duration); */
 
     //**********************************
 
     FILE* outputFile = outputFileInit(outputFileName);
 
-    printf("here5\n");
+    /* printf("here5\n"); */
     //running process swap needs to include setting the IO frequency and the making sure the next switch happens at the next iteration of the while loop
 
-    int RunningProcess_IO_Frequency = -1;
     int RunningProcess_ID = -1;
-    int time_until_IO;
-    bool canSwitch = false;
-
-    int count = 0;
+    /* int count = 0; */
 
     while (!isDone(processes, numberOfProcesses))
     {
-        printf("count is %d !!\n", count++);
+       /*  printf("count is %d !!\n", count++); */
         //getchar(); 
         if( getQueueSize(ReadyQueue) > 0 &&  RunningProcess_ID == -1){
-            struct process* process = dequeue(ReadyQueue);
+            process_t* process = dequeue(ReadyQueue);
 
             RunningProcess_ID = process->pid;
             process->current_time_until_IO = process->IO_frequency;
@@ -287,14 +283,13 @@ printf("here3\n");
 
         for (int i = 0; i < numberOfProcesses; i++)
         {
-            struct process process = processes[i];
 
-            print_process_details(processes[i]);
+            /* print_process_details(processes[i]); */
 
             if (processes[i].state == NEW)
             {
 
-                printf("clock is %d and process arrival time is %d\n", clock, processes[i].arrival_time);
+                /* printf("clock is %d and process arrival time is %d\n", clock, processes[i].arrival_time); */
 
                 if (processes[i].arrival_time == clock)
                 {
@@ -309,9 +304,7 @@ printf("here3\n");
             else if (processes[i].state == RUNNING)
             {
 
-                printf("time_until_IO is %d \n", time_until_IO);
-
-                processes[i].current_CPU_time_needed--;
+                /* printf("time_until_IO is %d \n", processes[i].current_time_until_IO); */
 
                 if(processes[i].current_CPU_time_needed == 0){
                     States prevState = processes[i].state;
@@ -332,6 +325,7 @@ printf("here3\n");
                 else
                 {
                     processes[i].current_time_until_IO--;
+                    processes[i].current_CPU_time_needed--;
                 }
                 
             }
@@ -355,7 +349,7 @@ printf("here3\n");
             // mechanism for switching the current running process is out of the for loop
             else if (processes[i].state == READY)
             {
-                print_process_details(processes[i]);
+                /* print_process_details(processes[i]); */
                 continue;
                /*  //timing the switch
                 if (canSwitch && RunningProcess_ID == -1)
@@ -390,7 +384,7 @@ printf("here3\n");
     /* 
     BLOCK USED TO TEST QUEUE
 
-    struct process process[5];
+    process_t process[5];
     for(int i = 0 ; i<5 ; i++){
         process[i].pid = i;
         process[i].arrival_time = 5;
@@ -415,11 +409,11 @@ printf("here3\n");
 
     for (int i = 0; i < 5; i++)
     {
-        struct process process = dequeue(ReadyQueue);
+        process_t process = dequeue(ReadyQueue);
         printf("Dequeueing Round %d \n", i);
         print_process_details(process);
     }
-    //input_file = (struct process *) malloc( sizeof(struct process) * processCtr); //Allocate memory for all process
+    //input_file = (process_t *) malloc( sizeof(process_t) * processCtr); //Allocate memory for all process
     */
 
     //Calls functions to clean up any dynamically allocated resources.
@@ -432,11 +426,11 @@ printf("here3\n");
 
 FILE* outputFileInit(char* outputFile){
 
-    printf("making output file with name %s \n", outputFile);
+    /* printf("making output file with name %s \n", outputFile); */
 
     FILE* outputFIle = fopen(outputFile, "w"); // opens file in current working directory
 
-    printf("made output file with name %s \n", outputFile);
+    /* printf("made output file with name %s \n", outputFile); */
 
     if(outputFIle == NULL){ //Check for file
         perror("Could not open file.");
@@ -450,7 +444,7 @@ void cleanOutputFile(FILE* outputFile){
     fclose(outputFile);
 }
 
-void printTransition(FILE* outputFile, int clock, struct process process, States prevState){
+void printTransition(FILE* outputFile, int clock, process_t process, States prevState){
 
     //for testing purposes
         fprintf(outputFile, " %d %d %s %s \n", clock, process.pid,  getStringFromState((States) prevState) ,getStringFromState( (States) process.state));
@@ -478,14 +472,14 @@ int countNumberOfProcesses(char* inputFile){
        /*  printf("Current process counter is %d \n", processCtr); */
     }
 
-    //input_file = (struct process *) malloc( sizeof(struct process) * processCtr); //Allocate memory for all process
+    //input_file = (process_t *) malloc( sizeof(process_t) * processCtr); //Allocate memory for all process
 
     fclose(file);
 
     return processCtr;
 }
 
-bool isDone(struct process* processes, int processCount){
+bool isDone(process_t* processes, int processCount){
     for(int i = 0; i < processCount; i++){
         if(processes[i].state != TERMINATED){
             return false;
@@ -506,7 +500,7 @@ const char * getStringFromState(States state){
 }
 
 //FUNCTION TO PRINT DETAILS OF A PROCESS
-void print_process_details(struct process process){
+void print_process_details(process_t process){
 
     //prints the state of a process for debugging
     printf("Pid: %d \t, arrival_time: %d \t, total_CPU_time: %d \t, IO_frequency: %d \t, IO_duration: %d \t, state: %s \t \n", \
@@ -523,7 +517,7 @@ void writeFile(){
 } */
 
 //FUNCTION TO PARSE OUR .TXT FILES
-void readInputFile(struct process* processes, char* inputFile){
+void readInputFile(process_t* processes, char* inputFile){
     char *str; //To store the text contained in each line
     const char truncate[2] = " "; //In-line separator
     char *token; //To store the token for each line
@@ -546,7 +540,7 @@ void readInputFile(struct process* processes, char* inputFile){
     while (fgets(input_line, sizeof(input_line), file)){
         str = input_line; //Point to our line
 
-        printf("%s \n",str);
+        /* printf("%s \n",str); */
         token = strtok(str, truncate); //Break input into a series of tokens
 
         while (token != NULL){
@@ -589,7 +583,7 @@ void readInputFile(struct process* processes, char* inputFile){
         processes[process_position].current_CPU_time_needed = processes[process_position].total_CPU_time;
         processes[process_position].current_time_until_IO_is_finished = processes[process_position].IO_duration;
         processes[process_position].current_time_until_IO = processes[process_position].IO_frequency;
-        print_process_details(processes[process_position]);
+        /* print_process_details(processes[process_position]); */
         input_parameter = 0; //Reset output parameter ctr
         process_position++; //Increment word position
 
