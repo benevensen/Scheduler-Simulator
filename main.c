@@ -25,6 +25,8 @@ typedef struct process
     int current_time_until_IO;             // amount of time until I/O is needed by the process
     int IO_duration;                       //How long IO is accessed
     int current_time_until_IO_is_finished; //amount of time until I/O is needed by the process
+    int initial_priority;                  //priority when the process first came into the ...
+    int effective_priority;                //effective priority the process currently has
     States state;                          //Current state of a process
 } process_t;
 
@@ -58,6 +60,11 @@ void cleanReadyQueue(Queue_t *ReadyQueue);
 void enqueue(Queue_t *ReadyQueue, process_t *process);
 process_t *dequeue(Queue_t *ReadyQueue);
 int getQueueSize(Queue_t *ReadyQueue);
+
+//queue commands for priority scheduler algorithm
+void priority_enqueue(Queue_t *ReadyQueue, process_t *process);
+void age_priority_queue(Queue_t *ReadyQueue);
+
 
 //Initializes queue and sets its members to an initial state
 Queue_t *initReadyQueue()
@@ -128,6 +135,198 @@ void enqueue(Queue_t *ReadyQueue, process_t *process)
         //increments size of the queue
         ReadyQueue->size++;
     }
+
+    //TESTING
+    //print_queue(ReadyQueue);
+}
+
+//function enqueues a process onto the queue
+//parameters are: a queue, and a process to enqueue
+//returns nothing
+// TODO: implement the priority enqueue
+void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
+{
+
+    // if the queue is empty, the first node becomes the head and tail
+    if (ReadyQueue->Tail == NULL)
+    {
+
+        //allocates memory for a node
+        Node_t *node = (Node_t *)malloc(sizeof(Node_t));
+
+        //creates a node and sets its process to the process parameter
+        node->process = process;
+
+        //sets next to null
+        node->Next = NULL;
+
+        //sets head and tail to current node
+        ReadyQueue->Head = (Node_t *)node;
+        ReadyQueue->Tail = (Node_t *)node;
+
+        //increments size of queue
+        ReadyQueue->size++;
+    }
+    // queue is not empty
+    else
+    {
+        //allocates memory for a node
+        Node_t *node = (Node_t *) malloc(sizeof(Node_t));
+
+        //creates a node and sets its process to the process parameter
+        node->process = process;
+
+        //pointer to track current node
+        Node_t* current_node = ReadyQueue->Head;
+
+        //pointer to track previous node
+        Node_t* prev_node = ReadyQueue->Head;
+
+        // iterate through the processes in the priority queue comparing priorities until
+        // a process with a higher priority (lower number) than the process being enqueued is found
+        while(current_node->process->effective_priority <= node->process->effective_priority){
+
+            //if the iteration reachs the head of the queue then stop iterating
+            if(current_node == ReadyQueue->Tail){
+                break;
+            }
+
+            //update previous node and current node to the next nodes in the list
+            prev_node = current_node;
+            current_node = current_node->Next;
+        }
+
+
+        //if there is only one process on the queue
+        if(ReadyQueue->Head == ReadyQueue->Tail){
+
+            if(ReadyQueue->Head->process->effective_priority <= node->process->effective_priority){
+
+                //new node becomes tail
+
+                // head node points to new node
+                ReadyQueue->Head->Next = node;
+
+                //new node points to nothing because its the new tail
+                node->Next = NULL;
+
+                //update the ready queue's tail
+                ReadyQueue->Tail = node;
+
+
+            }else{
+
+                //new node becomes head
+
+                //new node points to the old head
+                node->Next = ReadyQueue->Head;
+                
+                //update the ready queue's head
+                ReadyQueue->Head = node;
+
+            }
+        }
+        //if the process being enqueued has a higher priority than the head, make it the new head
+        else if(current_node == ReadyQueue->Head){
+
+            //set new node's next value to null since it will be the new head
+            node->Next = ReadyQueue->Head;
+
+            /* //set head node to point to the new node
+            current_node->Next = (Node_t *) node; */
+
+            //set the head of the queue to be the new node
+            ReadyQueue->Head = node;
+
+
+        //if the process being enqueued has a higher priority than the tail, make it the new tail
+        }else if(current_node == ReadyQueue->Tail){
+
+            ReadyQueue->Tail->Next = node;
+
+            //set new node's next value to the tail since it will be the new tail
+            node->Next = NULL;
+
+            //set the tail of the queue to be the new node
+            ReadyQueue->Tail = (Node_t *) node;
+
+        // if the node will be inserted in the middle
+        }else{
+
+           /*  //sets next to current node's next
+            node->Next = current_node->Next;
+
+            current_node->Next = node; */
+
+          /*   //updates old tail node to point to current node
+            prev_node->Next = (Node_t *) node; */
+            node->Next = current_node;
+
+            prev_node->Next = node;
+
+
+        }
+
+
+
+        //increments size of the queue
+        ReadyQueue->size++;
+    }
+        //TESTING
+        printf("Priority enqueue \n");
+        print_queue(ReadyQueue);
+}
+
+//function ages all processes in the priority queue
+//parameters are: a queue
+//returns nothing
+void age_priority_queue(Queue_t *ReadyQueue)
+{
+
+    // if the queue is empty, there is nothing to age
+    if (ReadyQueue->Tail == NULL)
+    {
+        return;
+    }
+    // queue is not empty
+    else
+    {
+     
+        // variable current_nod
+        Node_t* current_node = ReadyQueue->Head;
+
+        //iterate throught the entire priority queue and decrement the effective priority to age the processes
+        while(current_node != NULL){
+
+            if (current_node->process->effective_priority > 0)
+            {
+                current_node->process->effective_priority--;
+            }
+
+            current_node = current_node->Next;
+        }
+
+    }
+}
+
+
+//function ages all processes in the priority queue
+//parameters are: a queue
+//returns nothing
+void print_queue(Queue_t *ReadyQueue){
+
+    Node_t* current_node = ReadyQueue->Head;
+
+    while (current_node != NULL)
+    {
+        printf("%d (priority: %d) -> ", current_node->process->pid, current_node->process->effective_priority);
+
+        current_node = current_node->Next;
+    }
+
+    printf("\n");
+    
+
 }
 
 //function dequeues a process off the queue
@@ -176,9 +375,14 @@ process_t *dequeue(Queue_t *ReadyQueue)
         //frees up memory allociated for the head node
         free(ptr);
 
+        //TESTING
+        printf("Dequeue \n");
+        print_queue(ReadyQueue);
+
         //returns process that was at the front of the queue
         return frontProcess;
     }
+
 }
 
 //function that returns the size of the queue
@@ -213,6 +417,17 @@ bool isDone(process_t *processes, int processCount);
 //clean up
 void cleanOutputFile(FILE *outputFile);
 
+//function for dispatching processes based on the schedule algorithm
+//mode is 1 for FCFS, mode is 2 for priority scheduling, mode is 3 for round robin with 10ms timeout
+process_t * dispatcher(int mode);
+
+//function for allocating memory to processes,
+//will return a value for the partition used if a partition is available, otherwise it will return -1
+int memory_manager(int memory_required, int scheme);
+
+//variable for 100ms timeout assuming 1 tick is 1 ms
+const int TIMEOUT_AMOUNT = 100; 
+
 // Main function that runs the kernel simulator
 // Parameters are: the amount of commandline arguements , and an array of strings representing the arguments
 int main(int argc, char *argv[])
@@ -222,26 +437,71 @@ int main(int argc, char *argv[])
     char inputFileName[20];
     char outputFileName[20];
 
-    //no command line argument given -> uses default names for input and output files
+    //variable for checking which scheduling algorithm is being used
+    // 1 for FCFS, 2 for Priority Scheduling, 3 for Round Robin with 100ms timeout
+    int mode;
+
+    //variable for which memory_scheme to use
+    int memory_scheme;
+
+    //no command line argument given -> uses default values for mode, memory_scheme, input and output files
     if (argc == 1)
     {
         strcpy(inputFileName, "input.txt");
         strcpy(outputFileName, "output.txt");
+
+        mode = 1;
+        memory_scheme = 1;
+
     }
-    //1 command line argument given -> uses given name for input file and uses default name for output file
+    //1 command line argument given -> uses given value for mode, 
+    //and default values for  memory_scheme, input and output filenames
     else if (argc == 2)
     {
-        strcpy(inputFileName, argv[1]);
+
+        //strcpy(inputFileName, argv[1]);
+
+        mode = atoi(argv[1]);
+
+        memory_scheme = 1;
+
+        strcpy(inputFileName, "input.txt");
         strcpy(outputFileName, "output.txt");
     }
-    //2 command line argument given -> uses first given name for input file and second given name for output file
+    //2 command line argument given -> uses given values for mode and memory_scheme
+    //and default values for input and output filenames
     else if (argc == 3)
     {
         
-        strcpy(inputFileName, argv[1]);
-        strcpy(outputFileName, argv[2]);
+        mode = atoi(argv[1]);
 
-        // exits if there is too much command line arguments
+        memory_scheme = atoi(argv[2]);
+
+        strcpy(inputFileName, "input.txt");
+        strcpy(outputFileName, "output.txt");
+
+    //3 command line argument given -> uses given values for mode, memory_scheme, and input filename
+    //and default values for output filename
+    }else if (argc == 4)
+    {
+
+        mode = atoi(argv[1]);
+
+        memory_scheme = atoi(argv[2]);
+
+        strcpy(inputFileName, argv[3]);
+        strcpy(outputFileName,"output.txt");
+    } 
+    //4 command line argument given -> uses given values for mode, memory_scheme, input filename and output filename
+    else if (argc == 5)
+    {
+
+        mode = atoi(argv[1]);
+
+        memory_scheme = atoi(argv[2]);
+
+        strcpy(inputFileName, argv[3]);
+        strcpy(outputFileName, argv[4]);
     }
      // exits if there is too much command line arguments
     else
@@ -272,11 +532,35 @@ int main(int argc, char *argv[])
     //ASSUMES process id will never be -1
     int RunningProcess_ID = -1;
 
+    //variable for tracking if a process will timeout within the Round Robin Algorithm
+    int timeout = 0;
+
+    //variable for tracking the amount of ticks that have happened
+    int tick_until_aging = 10;
+
     //while loop that runs until all processes are in a terminated state
     //ASSUMES processes can not have multiple transisitons between states in 1 tick
     //ASSUMES processes on arrival will go into a ready state before being able to become the running process
     while (!isDone(processes, numberOfProcesses))
     {
+
+        //if the scheduing algorithm is the priority scheduler
+        if(mode == 2){
+
+            //update the tick_until_aging variable 
+            tick_until_aging--;
+
+            //if tick_until_aging is less than 10, then it is time to 
+            if(tick_until_aging <= 0){
+
+                //reset tick_until_aging 
+                tick_until_aging = 10;
+
+                //age processes in the priority queue
+               // age_priority_queue(ReadyQueue);
+            }
+        }
+
 
         //Checks if there is no running process and the ready queue is not empty.
         //If conditions are met, the process within the head node of the ready queue becomes the new process
@@ -293,6 +577,20 @@ int main(int argc, char *argv[])
 
             //resets process's current_time_until_IO variable to its IO frequency
             process->current_time_until_IO = process->IO_frequency;
+
+            //resets priority of the process transitioning to running
+            //can be done in this transition because this algorithm does not use preemption so 
+            //the priority of the running is not important.
+            if(mode == 2){
+                //resets process's effective priority variable to its initial priority
+                process->effective_priority = process->initial_priority;
+
+                //if mode is Round Robin
+            }else if(mode == 3){
+                
+                //reset timeout
+                timeout = 0;
+            }
 
             //saves process's old state
             States prevState = process->state;
@@ -320,8 +618,19 @@ int main(int argc, char *argv[])
                     //updates the process's state
                     processes[i].state = READY;
 
-                    //enqueues process onto the ready queue
-                    enqueue(ReadyQueue, &processes[i]);
+                    //if scheduling algorithm is priority scheduling 
+                    if(mode == 2){
+
+                        //enqueues process onto a priority ready queue
+                        priority_enqueue(ReadyQueue, &processes[i]);
+
+                    // enqueues process onto normal queue if the scheduling algorithm is FCFS or Round Robin
+                    }else{
+
+                        //enqueues process onto the ready queue
+                        enqueue(ReadyQueue, &processes[i]);
+
+                    }
 
                     //prints transition to output file
                     printTransition(outputFile, clock, processes[i], prevState);
@@ -330,6 +639,8 @@ int main(int argc, char *argv[])
             //if the process is in the RUNNING state
             else if (processes[i].state == RUNNING)
             {
+
+               
                 // if a running process finishes it's task, it transitions to the TERMINATED state
                 if (processes[i].current_CPU_time_needed == 0)
                 {
@@ -367,6 +678,35 @@ int main(int argc, char *argv[])
                     processes[i].current_time_until_IO--;
                     processes[i].current_CPU_time_needed--;
                 }
+
+
+                 //if schedule algorithm being used is the Round Robin algorithm
+                if(mode == 3){
+
+                    //increment the timeout variable
+                    timeout++;
+
+                    //if timeout variable is greater or equal to 100ms, then the process gets timed out and
+                    //goes back to the ready queue
+                    if(timeout >= TIMEOUT_AMOUNT){
+
+                        //saves process's old state
+                        States prevState = processes[i].state;
+
+                        //updates the process's state
+                        processes[i].state = READY;
+
+                        //resets the current running process id to -1, symbolizing there is currently no running process
+                        RunningProcess_ID = -1;
+
+                        //
+                        enqueue(ReadyQueue, &processes[i]);
+
+                        //prints transition to output file
+                        printTransition(outputFile, clock, processes[i], prevState);
+                        
+                    }
+                }
             }
             //if the process is in the WAITING state
             else if (processes[i].state == WAITING)
@@ -381,8 +721,18 @@ int main(int argc, char *argv[])
                     //updates the process's state
                     processes[i].state = READY;
 
-                    //enqueues process onto the ready queue
-                    enqueue(ReadyQueue, &processes[i]);
+                    if(mode == 2){
+
+                        //enqueues process onto a priority ready queue
+                        priority_enqueue(ReadyQueue, &processes[i]);
+
+                    // enqueues process onto normal queue if the scheduling algorithm is FCFS or Round Robin
+                    }else{
+
+                        //enqueues process onto the ready queue
+                        enqueue(ReadyQueue, &processes[i]);
+
+                    }
 
                     //prints transition to output file
                     printTransition(outputFile, clock, processes[i], prevState);
@@ -517,6 +867,11 @@ bool isDone(process_t *processes, int processCount)
     return true;
 }
 
+int memory_manager(int memory_required, int scheme){
+    static int memory[4][2];
+}
+
+
 //function for getting the string equivalent of a States Enum
 //parameter is an a State Enum
 //returns a string
@@ -590,6 +945,8 @@ void readInputFile(process_t *processes, char *inputFile)
             else if (input_parameter == 4)
             {
                 processes[process_position].IO_duration = int_token;
+            }else if (input_parameter == 5){
+                processes[process_position].initial_priority = int_token;
             }
 
             token = strtok(NULL, truncate); //Reset token
@@ -603,6 +960,7 @@ void readInputFile(process_t *processes, char *inputFile)
         processes[process_position].current_CPU_time_needed = processes[process_position].total_CPU_time;
         processes[process_position].current_time_until_IO_is_finished = processes[process_position].IO_duration;
         processes[process_position].current_time_until_IO = processes[process_position].IO_frequency;
+        processes[process_position].effective_priority = processes[process_position].initial_priority;
 
         input_parameter = 0; //Reset input parameter counter
         process_position++;  //Increment the process position counter to point to the next process in the array of processes
