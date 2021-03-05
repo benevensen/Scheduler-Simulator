@@ -4,253 +4,276 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-//enum for process state
+//The different possible states a process can have ("TERMINATED" is synonymous for EXIT)
 typedef enum Process_State
 {
-    NEW,       // process is new
-    READY,     // process is ready to run
-    RUNNING,   // process is currently running
-    WAITING,   // process is currently waiting on IO
-    TERMINATED // process is finished its task and terminated
+    NEW,       // Process is NEW
+    READY,     // Process is READY to run
+    RUNNING,   // Process is RUNNING
+    WAITING,   // Process is WAITING for I/O and such
+    TERMINATED // Process is finished its task and TERMINATED/EXIT
 } States;
 
-//data structure for process
+//The data structure for the PCB
 typedef struct process
 {
-    int pid;                               //Process ID
-    int arrival_time;                      //Time of arrival
-    int total_CPU_time;                    //Total execution time
-    int current_CPU_time_needed;           //amount of CPU time needed to finish the task
-    int IO_frequency;                      //How frequently IO is accessed
-    int current_time_until_IO;             // amount of time until I/O is needed by the process
-    int IO_duration;                       //How long IO is accessed
-    int current_time_until_IO_is_finished; //amount of time until I/O is needed by the process
-    int initial_priority;                  //priority when the process first came into the ...
-    int effective_priority;                //effective priority the process currently has
-    States state;                          //Current state of a process
+    int pid;                               // Process ID.
+    int arrival_time;                      // Time of arrival.
+    int total_CPU_time;                    // Total execution time.
+    int current_CPU_time_needed;           // Amount of CPU time needed to finish the task.
+    int IO_frequency;                      // How frequently IO is accessed.
+    int current_time_until_IO;             // Amount of time until I/O is needed by the process.
+    int IO_duration;                       // How long IO is accessed.
+    int current_time_until_IO_is_finished; // Amount of time until I/O is needed by the process.
+    int initial_priority;                  // Priority when the process first came into the queue.
+    int effective_priority;                // Effective priority the process currently has.
+    States state;                          // Current state of a process.
 } process_t;
 
-// ************************************************************
+/* ======================================================
+ * QUEUE IMPLEMENTATION
+ * ======================================================
+ *
+ * Used a LinkedList because:-
+ * 1. May have to manipulate it often (Doubly LinkedList's are faster).
+ * 2. We will only be adding process sequentially (their order is not necessarily linear, though).
+ */
 
-//Implementation for Queue
-
-//Node for queue
+//A Node for the queue.
 typedef struct Node
 {
-    struct Node *Next;  // pointer to next node
-    process_t *process; // pointer to the node's process
+    struct Node *Next;  // Pointer to next Node.
+    process_t *process; // Pointer to the Node's PCB (named process).
 
 } Node_t;
 
-//Queue implemented with a linked list
+//Queue implementation with a LinkedList.
 typedef struct Queue
 {
-    Node_t *Head; //pointer to head node
-    Node_t *Tail; //pointer to tail node
-    int size;     //size of the queue
+    Node_t *Head; // Pointer to head Node.
+    Node_t *Tail; // Pointer to tail Node.
+    int size;     // Size of the queue.
 } Queue_t;
 
-//constructing function for queue
+//Constructing function for queue.
 Queue_t *initReadyQueue();
 
-//clean up function for queue
+//Clean up function for queue.
 void cleanReadyQueue(Queue_t *ReadyQueue);
 
-//general queue commands
+//Commands for enqueue-ing, dequeue-ing, and accessor method for queue size.
 void enqueue(Queue_t *ReadyQueue, process_t *process);
 process_t *dequeue(Queue_t *ReadyQueue);
 int getQueueSize(Queue_t *ReadyQueue);
 
-//queue commands for priority scheduler algorithm
+//Commands for enqueue-ing with priority scheduler algorithm.
+//To prevent starvation aging has been recognised.
 void priority_enqueue(Queue_t *ReadyQueue, process_t *process);
 void age_priority_queue(Queue_t *ReadyQueue);
 
 
-//Initializes queue and sets its members to an initial state
+//Initializing the queue and setting its member's initial state.
 Queue_t *initReadyQueue()
 {
 
-    // allocates memory for queue on the heap
+    //Allocating memory for queue on the heap.
     Queue_t *ReadyQueue = (Queue_t *)malloc(sizeof(Queue_t));
 
-    //sets head and tail to null and size to 0
+    //Setting head and tail to NULL and size to 0.
     ReadyQueue->Head = NULL;
     ReadyQueue->Tail = NULL;
     ReadyQueue->size = 0;
 
-    //returns the queue
+    //Returning the queue.
     return ReadyQueue;
 }
 
-//cleans up the queue (deallocates the memory on the heap of the queue)
-void cleanReadyQueue(Queue_t *ReadyQueue)
-{
-    free(ReadyQueue);
+//Function ages all processes in the priority queue.
+//Method to print out the queue as it stands.
+//Parameter:- ReadyQueue, a queue.
+//Return:- N/A.
+void print_queue(Queue_t *ReadyQueue){
+
+    Node_t* current_node = ReadyQueue->Head;
+
+    while (current_node != NULL)
+    {
+        printf("%d (priority: %d) -> ", current_node->process->pid, current_node->process->effective_priority);
+
+        current_node = current_node->Next;
+    }
+
+    printf("\n");
 }
 
-//function enqueues a process onto the queue
-//parameters are: a queue, and a process to enqueue
-//returns nothing
+//Method to clean up the queue (deallocates the memory on the heap of the queue).
+//Parameter:- ReadyQueue, a queue.
+//Return:- N/A.
+void cleanReadyQueue(Queue_t *ReadyQueue)
+{
+    free(ReadyQueue); //Freeing the provided queue.
+}
+
+//Method for enqueue-ing a process onto the queue.
+//Parameter:- ReadyQueue, a queue.
+//Parameter:- process, a PCB to enqueue.
+//Return:- N/A.
 void enqueue(Queue_t *ReadyQueue, process_t *process)
 {
 
-    // if the queue is empty, the first node becomes the head and tail
+    //If queue is empty; make first Node the head and the tail.
     if (ReadyQueue->Tail == NULL)
     {
-
-        //allocates memory for a node
+        //Allocating memory for a Node.
         Node_t *node = (Node_t *)malloc(sizeof(Node_t));
 
-        //creates a node and sets its process to the process parameter
+        //Creating a Node and setting its PCB to the process parameter.
         node->process = process;
 
-        //sets next to null
+        //Setting the next to NULL.
         node->Next = NULL;
 
-        //sets head and tail to current node
+        //Setting the head and the tail to the current Node.
         ReadyQueue->Head = (Node_t *)node;
         ReadyQueue->Tail = (Node_t *)node;
-
-        //increments size of queue
-        ReadyQueue->size++;
     }
-    // queue is not empty
+
+    //If queue is not empty; make Node the tail.
     else
     {
-        //allocates memory for a node
+        //Allocating memory for a Node.
         Node_t *node = (Node_t *)malloc(sizeof(Node_t));
 
-        //creates a node and sets its process to the process parameter
+        //Creating a Node and setting its PCB to the process parameter.
         node->process = process;
 
-        //sets next to null
+        //Setting next to NULL.
         node->Next = NULL;
 
-        //updates old tail node to point to current node
+        //Updating the old tail Node to point to the current Node.
         ReadyQueue->Tail->Next = (Node_t *)node;
 
-        //sets tail to current node (current node becomes the new tail)
+        //Setting the tail to current Node (current Node becomes the new tail).
         ReadyQueue->Tail = node;
-
-        //increments size of the queue
-        ReadyQueue->size++;
     }
+
+    //Incrementing the size of the queue.
+    ReadyQueue->size++;
 
     //TESTING
     //print_queue(ReadyQueue);
 }
 
-//function enqueues a process onto the queue
-//parameters are: a queue, and a process to enqueue
-//returns nothing
+//Method for enqueue-ing a process onto the queue.
+//Parameters:- ReadyQueue, a queue.
+//Parameter:- process, a PCB to enqueue.
+//Return:- N/A.
 // TODO: implement the priority enqueue
 void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
 {
-
-    // if the queue is empty, the first node becomes the head and tail
+    //If the queue is empty; create a new one.
+    //The first Node becomes the head and the tail.
     if (ReadyQueue->Tail == NULL)
     {
-
-        //allocates memory for a node
+        //Allocating memory for a Node.
         Node_t *node = (Node_t *)malloc(sizeof(Node_t));
 
-        //creates a node and sets its process to the process parameter
+        //Creating a Node and setting its PCB to the process parameter.
         node->process = process;
 
-        //sets next to null
+        //Setting next to NULL.
         node->Next = NULL;
 
-        //sets head and tail to current node
+        //Setting the head and the tail to the current Node.
         ReadyQueue->Head = (Node_t *)node;
         ReadyQueue->Tail = (Node_t *)node;
 
-        //increments size of queue
+        //Incrementing the size of the queue.
         ReadyQueue->size++;
     }
-    // queue is not empty
+
+    //If the queue is not empty; compare priorities and add where needed.
     else
     {
-        //allocates memory for a node
+        //Allocating memory for a Node.
         Node_t *node = (Node_t *) malloc(sizeof(Node_t));
 
-        //creates a node and sets its process to the process parameter
+        //Creating a Node and setting its PCB to the process parameter.
         node->process = process;
 
-        //pointer to track current node
+        //Pointer to track the current Node.
         Node_t* current_node = ReadyQueue->Head;
 
-        //pointer to track previous node
+        //Pointer to track the previous Node.
         Node_t* prev_node = ReadyQueue->Head;
 
-        // iterate through the processes in the priority queue comparing priorities until
-        // a process with a higher priority (lower number) than the process being enqueued is found
+        //Iterating through the processes in the priority queue comparing priorities until
+        //a process with a higher priority (i.e., a lower number) than the process being enqueued is found.
         while(current_node->process->effective_priority <= node->process->effective_priority){
 
-            //if the iteration reachs the head of the queue then stop iterating
+            //If the iteration reaches the head of the queue; stop iterating.
             if(current_node == ReadyQueue->Tail){
                 break;
             }
 
-            //update previous node and current node to the next nodes in the list
+            //Updating the previous Node and the current Node to the next Nodes in the LinkedList.
             prev_node = current_node;
             current_node = current_node->Next;
         }
 
 
-        //if there is only one process on the queue
+        //If there is only one process on the queue; check for higher priority and add where neccessary.
         if(ReadyQueue->Head == ReadyQueue->Tail){
 
+            //If the priority of the new Node is lesser than the present Node; add the new Node to the tail of the LinkedList.
             if(ReadyQueue->Head->process->effective_priority <= node->process->effective_priority){
 
-                //new node becomes tail
-
-                // head node points to new node
+                //Make head Node next point to new Node.
                 ReadyQueue->Head->Next = node;
 
-                //new node points to nothing because its the new tail
+                //Make new Node next point to NULL as it is the new tail.
                 node->Next = NULL;
 
-                //update the ready queue's tail
+                //Updating the ready queue's tail.
                 ReadyQueue->Tail = node;
+            }
 
+            //If the priority of the new Node is greater than the present Node; add the new Node to the head of the LinkedList.
+            else{
 
-            }else{
-
-                //new node becomes head
-
-                //new node points to the old head
+                //Make new Node point to the old head Node.
                 node->Next = ReadyQueue->Head;
                 
-                //update the ready queue's head
+                //Updating the ready queue's head.
                 ReadyQueue->Head = node;
-
             }
         }
-        //if the process being enqueued has a higher priority than the head, make it the new head
+
+        //If the process being enqueued has a higher priority than the head; make it the new head.
         else if(current_node == ReadyQueue->Head){
 
-            //set new node's next value to null since it will be the new head
+            //Setting new Node's next to the previous head Node, it is the new head.
             node->Next = ReadyQueue->Head;
 
             /* //set head node to point to the new node
             current_node->Next = (Node_t *) node; */
 
-            //set the head of the queue to be the new node
+            //Setting the head of the queue to be the new Node.
             ReadyQueue->Head = node;
 
 
-        //if the process being enqueued has a higher priority than the tail, make it the new tail
+        //If the process being enqueued has a higher priority than the tail; make it the new tail.
         }else if(current_node == ReadyQueue->Tail){
 
             ReadyQueue->Tail->Next = node;
 
-            //set new node's next value to the tail since it will be the new tail
+            //Setting the new Node's next to the tail as it will be the new tail.
             node->Next = NULL;
 
-            //set the tail of the queue to be the new node
+            //Setting the tail of the queue to be the new Node.
             ReadyQueue->Tail = (Node_t *) node;
 
-        // if the node will be inserted in the middle
+        //If the Node has a medium-level priority; it will be inserted in the middle.
         }else{
 
            /*  //sets next to current node's next
@@ -260,16 +283,16 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
 
           /*   //updates old tail node to point to current node
             prev_node->Next = (Node_t *) node; */
+            //Seting the new Node's next to the current Node.
             node->Next = current_node;
 
+            //Setting the previous Node's next to be the new Node.
             prev_node->Next = node;
-
-
         }
 
 
 
-        //increments size of the queue
+        //Incrementing the size of the queue.
         ReadyQueue->size++;
     }
         //TESTING
@@ -292,10 +315,10 @@ void age_priority_queue(Queue_t *ReadyQueue)
     else
     {
      
-        // variable current_nod
+        // variable current_node
         Node_t* current_node = ReadyQueue->Head;
 
-        //iterate throught the entire priority queue and decrement the effective priority to age the processes
+        //iterate throughout the entire priority queue and decrement the effective priority to age the processes
         while(current_node != NULL){
 
             if (current_node->process->effective_priority > 0)
@@ -309,25 +332,6 @@ void age_priority_queue(Queue_t *ReadyQueue)
     }
 }
 
-
-//function ages all processes in the priority queue
-//parameters are: a queue
-//returns nothing
-void print_queue(Queue_t *ReadyQueue){
-
-    Node_t* current_node = ReadyQueue->Head;
-
-    while (current_node != NULL)
-    {
-        printf("%d (priority: %d) -> ", current_node->process->pid, current_node->process->effective_priority);
-
-        current_node = current_node->Next;
-    }
-
-    printf("\n");
-    
-
-}
 
 //function dequeues a process off the queue
 //parameters are: a queue
@@ -680,7 +684,7 @@ int main(int argc, char *argv[])
                 }
 
 
-                 //if schedule algorithm being used is the Round Robin algorithm
+                //if schedule algorithm being used is the Round Robin algorithm
                 if(mode == 3){
 
                     //increment the timeout variable
