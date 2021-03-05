@@ -454,6 +454,11 @@ int memory_manager(int memory_required, int scheme);
 //variable for 100ms timeout assuming 1 tick is 1 ms
 const int TIMEOUT_AMOUNT = 100; 
 
+const int MEMORY_SCHEME_1[][2] = {{500,-1},{250,-1},{150,-1},{100,-1}};
+
+const int MEMORY_SCHEME_2[][2] = {{300,-1},{300,-1},{350,-1},{50,-1}};
+
+
 // Main function that runs the kernel simulator
 // Parameters are: the amount of commandline arguements , and an array of strings representing the arguments
 int main(int argc, char *argv[])
@@ -468,7 +473,8 @@ int main(int argc, char *argv[])
     int mode;
 
     //variable for which memory_scheme to use
-    int memory_scheme;
+    //set to 0 if unused
+    int memory_scheme = 0;
 
     //no command line argument given -> uses default values for mode, memory_scheme, input and output files
     if (argc == 1)
@@ -701,37 +707,43 @@ int main(int argc, char *argv[])
                 // decrements the process's current_time_until_IO and current_CPU_time_needed variables
                 else
                 {
+
+                    //if schedule algorithm being used is the Round Robin algorithm
+                    if (mode == 3)
+                    {
+
+                        //if timeout variable is greater or equal to 100ms, then the process gets timed out and
+                        //goes back to the ready queue
+                        if (timeout == TIMEOUT_AMOUNT && processes[i].current_CPU_time_needed != 0)
+                        {
+
+                            //saves process's old state
+                            States prevState = processes[i].state;
+
+                            //updates the process's state
+                            processes[i].state = READY;
+
+                            //resets the current running process id to -1, symbolizing there is currently no running process
+                            RunningProcess_ID = -1;
+
+                            //TESTING
+                            //printf("time left in process: %d  is %d \n", processes[i].pid, processes[i].current_CPU_time_needed);
+
+                            //
+                            enqueue(ReadyQueue, &processes[i]);
+
+                            //prints transition to output file
+                            printTransition(outputFile, clock, processes[i], prevState);
+
+                            continue;
+                        }
+
+                        //increment the timeout variable
+                        timeout++;
+                    }
+
                     processes[i].current_time_until_IO--;
                     processes[i].current_CPU_time_needed--;
-                }
-
-
-                //if schedule algorithm being used is the Round Robin algorithm
-                if(mode == 3){
-
-                    //increment the timeout variable
-                    timeout++;
-
-                    //if timeout variable is greater or equal to 100ms, then the process gets timed out and
-                    //goes back to the ready queue
-                    if(timeout >= TIMEOUT_AMOUNT){
-
-                        //saves process's old state
-                        States prevState = processes[i].state;
-
-                        //updates the process's state
-                        processes[i].state = READY;
-
-                        //resets the current running process id to -1, symbolizing there is currently no running process
-                        RunningProcess_ID = -1;
-
-                        //
-                        enqueue(ReadyQueue, &processes[i]);
-
-                        //prints transition to output file
-                        printTransition(outputFile, clock, processes[i], prevState);
-                        
-                    }
                 }
             }
             //if the process is in the WAITING state
