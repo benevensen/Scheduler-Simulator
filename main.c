@@ -221,9 +221,12 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
             current_node = current_node->Next;
         }
 
+        //printf("\n current node: %d , previous node: %d\n\n", current_node->process->pid,prev_node->process->pid );
 
         //If there is only one process on the queue; check for higher priority and add where neccessary.
         if(ReadyQueue->Head == ReadyQueue->Tail){
+
+            //printf("IN ONE ELEMENT QUEUE\n");
 
             //If the priority of the new Node is lesser than the present Node; add the new Node to the tail of the LinkedList.
             if(ReadyQueue->Head->process->effective_priority <= node->process->effective_priority){
@@ -252,6 +255,8 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
         //If the process being enqueued has a higher priority than the head; make it the new head.
         else if(current_node == ReadyQueue->Head){
 
+            //printf("Current node is the head \n");
+            
             //Setting new Node's next to the previous head Node, it is the new head.
             node->Next = ReadyQueue->Head;
 
@@ -264,18 +269,30 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
 
         //If the process being enqueued has a higher priority than the tail; make it the new tail.
         }else if(current_node == ReadyQueue->Tail){
+            //printf("Current node is the tail \n");
 
-            ReadyQueue->Tail->Next = node;
 
-            //Setting the new Node's next to the tail as it will be the new tail.
-            node->Next = NULL;
+            if(ReadyQueue->Tail->process->effective_priority <= node->process->effective_priority){
 
-            //Setting the tail of the queue to be the new Node.
-            ReadyQueue->Tail = (Node_t *) node;
+                ReadyQueue->Tail->Next = node;
+
+                //Setting the new Node's next to the tail as it will be the new tail.
+                node->Next = NULL;
+
+                //Setting the tail of the queue to be the new Node.
+                ReadyQueue->Tail = (Node_t *) node;
+
+            }else{
+
+                node->Next = prev_node->Next;
+
+                prev_node->Next = node;
+            }
 
         //If the Node has a medium-level priority; it will be inserted in the middle.
         }else{
 
+            //printf("Current node is being inserted in the middle of the queue \n");
            /*  //sets next to current node's next
             node->Next = current_node->Next;
 
@@ -284,10 +301,15 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
           /*   //updates old tail node to point to current node
             prev_node->Next = (Node_t *) node; */
             //Seting the new Node's next to the current Node.
-            node->Next = current_node;
+            //node->Next = current_node;
 
             //Setting the previous Node's next to be the new Node.
+            //prev_node->Next = node;
+
+            node->Next = prev_node->Next;
+
             prev_node->Next = node;
+
         }
 
 
@@ -561,7 +583,7 @@ int main(int argc, char *argv[])
                 tick_until_aging = 10;
 
                 //age processes in the priority queue
-               // age_priority_queue(ReadyQueue);
+                age_priority_queue(ReadyQueue);
             }
         }
 
