@@ -419,9 +419,9 @@ int getQueueSize(Queue_t *ReadyQueue)
     return ReadyQueue->size;
 }
 
-// ************************************************************
-
-//Implementation of the kernel simulator
+/* ========================================================
+ * KERNEL SIMULATOR IMPLEMENTATION
+ */ =======================================================
 
 //input file related functions
 int countNumberOfProcesses();
