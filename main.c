@@ -35,10 +35,6 @@ typedef struct process
 /* ======================================================
  * QUEUE IMPLEMENTATION
  * ======================================================
- *
- * Used a LinkedList because:-
- * 1. May have to manipulate it often (Doubly LinkedList's are faster).
- * 2. We will only be adding process sequentially (their order is not necessarily linear, though).
  */
 
 //A Node for the queue.
@@ -96,8 +92,10 @@ Queue_t *initReadyQueue()
 //Return:- N/A.
 void print_queue(Queue_t *ReadyQueue){
 
+    //starts at head of queue
     Node_t* current_node = ReadyQueue->Head;
 
+    //iterates through queue and prints all elements with arrows pointing towards the tail
     while (current_node != NULL)
     {
         printf("%d (priority: %d) -> ", current_node->process->pid, current_node->process->effective_priority);
@@ -166,7 +164,7 @@ void enqueue(Queue_t *ReadyQueue, process_t *process)
     //print_queue(ReadyQueue);
 }
 
-//Method for enqueue-ing a process onto the queue.
+//Method for enqueue-ing a process onto the queue and placing it in the proper place according to priority.
 //Parameters:- ReadyQueue, a queue.
 //Parameter:- process, a PCB to enqueue.
 //Return:- N/A.
@@ -223,12 +221,9 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
             current_node = current_node->Next;
         }
 
-        //printf("\n current node: %d , previous node: %d\n\n", current_node->process->pid,prev_node->process->pid );
-
         //If there is only one process on the queue; check for higher priority and add where neccessary.
         if(ReadyQueue->Head == ReadyQueue->Tail){
 
-            //printf("IN ONE ELEMENT QUEUE\n");
 
             //If the priority of the new Node is lesser than the present Node; add the new Node to the tail of the LinkedList.
             if(ReadyQueue->Head->process->effective_priority <= node->process->effective_priority){
@@ -262,18 +257,16 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
             //Setting new Node's next to the previous head Node, it is the new head.
             node->Next = ReadyQueue->Head;
 
-            /* //set head node to point to the new node
-            current_node->Next = (Node_t *) node; */
-
             //Setting the head of the queue to be the new Node.
             ReadyQueue->Head = node;
 
 
-        //If the process being enqueued has a higher priority than the tail; make it the new tail.
+        // if current node is the tail, we must make more comparisons
         }else if(current_node == ReadyQueue->Tail){
             //printf("Current node is the tail \n");
 
 
+            //If the process being enqueued has a lower priority than the tail; make it the new tail.
             if(ReadyQueue->Tail->process->effective_priority <= node->process->effective_priority){
 
                 ReadyQueue->Tail->Next = node;
@@ -284,6 +277,7 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
                 //Setting the tail of the queue to be the new Node.
                 ReadyQueue->Tail = (Node_t *) node;
 
+            //if the process being enqueued has a higher priority than the tail; place it before the tail.
             }else{
 
                 node->Next = prev_node->Next;
@@ -291,22 +285,9 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
                 prev_node->Next = node;
             }
 
-        //If the Node has a medium-level priority; it will be inserted in the middle.
+        //If the Node has a medium-level priority; it will be inserted in the middle (after processes with higher or
+        // the same priority but before processes with lower priority).
         }else{
-
-            //printf("Current node is being inserted in the middle of the queue \n");
-           /*  //sets next to current node's next
-            node->Next = current_node->Next;
-
-            current_node->Next = node; */
-
-          /*   //updates old tail node to point to current node
-            prev_node->Next = (Node_t *) node; */
-            //Seting the new Node's next to the current Node.
-            //node->Next = current_node;
-
-            //Setting the previous Node's next to be the new Node.
-            //prev_node->Next = node;
 
             node->Next = prev_node->Next;
 
@@ -314,14 +295,10 @@ void priority_enqueue(Queue_t *ReadyQueue, process_t *process)
 
         }
 
-
-
         //Incrementing the size of the queue.
         ReadyQueue->size++;
     }
-        //TESTING
-        printf("Priority enqueue \n");
-        print_queue(ReadyQueue);
+     
 }
 
 //function ages all processes in the priority queue
@@ -345,6 +322,7 @@ void age_priority_queue(Queue_t *ReadyQueue)
         //iterate throughout the entire priority queue and decrement the effective priority to age the processes
         while(current_node != NULL){
 
+            //check if the effective priority is greater than 0 then decrement (to avoid negative numbers for priority)
             if (current_node->process->effective_priority > 0)
             {
                 current_node->process->effective_priority--;
@@ -388,7 +366,6 @@ process_t *dequeue(Queue_t *ReadyQueue)
             //updates head node to point to the next node
             ReadyQueue->Head = ReadyQueue->Head->Next;
 
-            
         }
         // if queue has only 1 node, sets head and tail to null
         else
@@ -402,10 +379,6 @@ process_t *dequeue(Queue_t *ReadyQueue)
 
         //frees up memory allociated for the head node
         free(ptr);
-
-        //TESTING
-       /*  printf("Dequeue \n");
-        print_queue(ReadyQueue); */
 
         //returns process that was at the front of the queue
         return frontProcess;
@@ -462,7 +435,7 @@ const int TIMEOUT_AMOUNT = 100;
 const int ALLOCATE = 0;
 const int FREE = 1;
 
-
+//Preset memory portions for the partitions
 const int MEMORY_SCHEME_1[][2] = {{500,-1},{250,-1},{150,-1},{100,-1}};
 
 const int MEMORY_SCHEME_2[][2] = {{300,-1},{300,-1},{350,-1},{50,-1}};
@@ -574,19 +547,6 @@ int main(int argc, char *argv[])
     }
 
 
-    if(memory_scheme == 1 || memory_scheme == 2 ){
-
-        printf("Printing memory partition... \n");
-
-        for(int j = 0; j < 4; j++){
-
-            for(int k = 0; k < 2; k++){
-
-               printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
-            }
-        }
-    }
-
     //initializes the ready queue for keeping track of the order of processes
     Queue_t *ReadyQueue = initReadyQueue();
 
@@ -687,8 +647,6 @@ int main(int argc, char *argv[])
             if (processes[i].state == NEW)
             {
 
-                //printf("new process with id %d\n" , processes[i].pid);
-
                 //if its the processes arrival time, the process transitions to the READY state
                 if (processes[i].arrival_time <= clock )
                 {
@@ -697,20 +655,6 @@ int main(int argc, char *argv[])
                     if(memory_scheme != 0 && memory_manager(partitions,ALLOCATE,&processes[i], memory_scheme) == -1){
                         continue;
                     }
-
-                    printf("new process with id %d has been allocated!\n" , processes[i].pid);
-
-                    for (int j = 0; j < 4; j++)
-                    {
-
-                        for (int k = 0; k < 2; k++)
-                        {
-
-                            printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
-                        }
-                    }
-
-                    getchar();
 
                     //saves process's old state
                     States prevState = processes[i].state;
@@ -762,21 +706,6 @@ int main(int argc, char *argv[])
 
                     memory_manager(partitions,FREE, &processes[i], memory_scheme);
 
-                    printf("Process %d is terminating", processes[i].pid);
-
-                    printf("Printing memory partition... \n");
-
-                    for (int j = 0; j < 4; j++)
-                    {
-
-                        for (int k = 0; k < 2; k++)
-                        {
-
-                            printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
-                        }
-                    }
-
-                    getchar();
                 }
                 //if a running process needs IO, it transitions to the WAITING state
                 else if (processes[i].current_time_until_IO == 0)
@@ -816,10 +745,7 @@ int main(int argc, char *argv[])
                             //resets the current running process id to -1, symbolizing there is currently no running process
                             RunningProcess_ID = -1;
 
-                            //TESTING
-                            //printf("time left in process: %d  is %d \n", processes[i].pid, processes[i].current_CPU_time_needed);
-
-                            //
+                            //enqueue the ready process
                             enqueue(ReadyQueue, &processes[i]);
 
                             //prints transition to output file
@@ -964,17 +890,6 @@ void print_memory_information(FILE *outputFile, int partitions[4][2] , int memor
     //
 
 
-        printf("Printing memory partition... \n");
-
-        for(int j = 0; j < 4; j++){
-
-            for(int k = 0; k < 2; k++){
-
-               printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
-            }
-        }
-    
-
     //variable for calculating the amount of free memory available
     int total_free_memory_available = 0;
 
@@ -1100,9 +1015,8 @@ bool isDone(process_t *processes, int processCount)
 int memory_manager(int partitions[][2], int command, process_t* process, int memory_scheme ){
 
     //memory manager attempts to allocates memory if it receives the allocate command
+    //Uses the first fit algothrim for implementation simplicity
     if(command == ALLOCATE){
-
-        printf("Allocating for process %d\n ", process->pid);
 
         //sets initial value for partition_for_process
         int partition_for_process = -1;
@@ -1119,8 +1033,6 @@ int memory_manager(int partitions[][2], int command, process_t* process, int mem
         // if partition_for_process is at the initial value, the memory manager couldn't find space for the process
         if(partition_for_process == -1){
 
-            printf("couldn't find memory for process %d \n", process->pid);
-
             //returns -1 because the memory manager couldn't find space for the process
             return -1;
 
@@ -1128,7 +1040,6 @@ int memory_manager(int partitions[][2], int command, process_t* process, int mem
             //memory manager found space for the process
         }else{
             
-            printf("Found memory for process %d in partition %d\n", process->pid, partition_for_process);
             //memory manager updates the information about memory usage within the partition
             partitions[partition_for_process][0] -= process->memory_needed;
 
