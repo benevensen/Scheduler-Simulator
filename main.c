@@ -27,6 +27,8 @@ typedef struct process
     int current_time_until_IO_is_finished; // Amount of time until I/O is needed by the process.
     int initial_priority;                  // Priority when the process first came into the queue.
     int effective_priority;                // Effective priority the process currently has.
+    int memory_needed;                     // The amount of memory need for the process.
+    int partition_used;                    // The partition that the process is stored on, set to -1 is not in memory
     States state;                          // Current state of a process.
 } process_t;
 
@@ -402,8 +404,8 @@ process_t *dequeue(Queue_t *ReadyQueue)
         free(ptr);
 
         //TESTING
-        printf("Dequeue \n");
-        print_queue(ReadyQueue);
+       /*  printf("Dequeue \n");
+        print_queue(ReadyQueue); */
 
         //returns process that was at the front of the queue
         return frontProcess;
@@ -425,7 +427,7 @@ int getQueueSize(Queue_t *ReadyQueue)
 
 //input file related functions
 int countNumberOfProcesses();
-void readInputFile(process_t *processes, char *inputFile);
+void readInputFile(process_t *processes, char *inputFile, int memory_scheme);
 
 //helper function for getting the string equivalent of enums
 const char *getStringFromState(States state);
@@ -433,6 +435,7 @@ const char *getStringFromState(States state);
 //output file related functions
 FILE *outputFileInit();
 void printTransition(FILE *outputFile, int clock, process_t process, States prevState);
+void print_memory_information(FILE *outputFile, int partitions[][2] , int memory_scheme);
 
 // function for printing details of the process (for debugging)
 void print_process_details(process_t process);
@@ -447,12 +450,18 @@ void cleanOutputFile(FILE *outputFile);
 //mode is 1 for FCFS, mode is 2 for priority scheduling, mode is 3 for round robin with 10ms timeout
 process_t * dispatcher(int mode);
 
-//function for allocating memory to processes,
-//will return a value for the partition used if a partition is available, otherwise it will return -1
-int memory_manager(int memory_required, int scheme);
+//function for allocating memory to processes or freeing memory,
+//it will allocate a free partition if a partition is available, otherwise it will return -1
+//the function will also free memory when a process is terminated 
+int memory_manager(int partitions[][2], int command, process_t* process, int memory_scheme );
 
 //variable for 100ms timeout assuming 1 tick is 1 ms
 const int TIMEOUT_AMOUNT = 100; 
+
+//Commands for the memory manager
+const int ALLOCATE = 0;
+const int FREE = 1;
+
 
 const int MEMORY_SCHEME_1[][2] = {{500,-1},{250,-1},{150,-1},{100,-1}};
 
@@ -483,7 +492,7 @@ int main(int argc, char *argv[])
         strcpy(outputFileName, "output.txt");
 
         mode = 1;
-        memory_scheme = 1;
+        memory_scheme = 0;
 
     }
     //1 command line argument given -> uses given value for mode, 
@@ -495,7 +504,7 @@ int main(int argc, char *argv[])
 
         mode = atoi(argv[1]);
 
-        memory_scheme = 1;
+        memory_scheme = 0;
 
         strcpy(inputFileName, "input.txt");
         strcpy(outputFileName, "output.txt");
@@ -542,6 +551,42 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    //variable to hold partition information
+    int partitions[4][2];
+
+    //double for loop to initial the partitions array to the correct sizes
+    if(memory_scheme == 1 || memory_scheme == 2 ){
+
+        for(int j = 0; j < 4; j++){
+
+            for(int k = 0; k < 2; k++){
+
+                if (memory_scheme == 1)
+                {
+                    partitions[j][k] = MEMORY_SCHEME_1[j][k];
+                }
+                else
+                {
+                    partitions[j][k]  = MEMORY_SCHEME_2[j][k];
+                }
+            }
+        }
+    }
+
+
+    if(memory_scheme == 1 || memory_scheme == 2 ){
+
+        printf("Printing memory partition... \n");
+
+        for(int j = 0; j < 4; j++){
+
+            for(int k = 0; k < 2; k++){
+
+               printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
+            }
+        }
+    }
+
     //initializes the ready queue for keeping track of the order of processes
     Queue_t *ReadyQueue = initReadyQueue();
 
@@ -552,7 +597,7 @@ int main(int argc, char *argv[])
     process_t *processes = (process_t *)malloc(sizeof(process_t) * numberOfProcesses); //Allocate memory for all process
 
     // reads the input file and constructs the process structs with the correct values
-    readInputFile(processes, inputFileName);
+    readInputFile(processes, inputFileName, memory_scheme);
 
     //variable to represent the clock in ticks
     int clock = 0;
@@ -641,9 +686,32 @@ int main(int argc, char *argv[])
             //if the process is in the NEW state
             if (processes[i].state == NEW)
             {
+
+                //printf("new process with id %d\n" , processes[i].pid);
+
                 //if its the processes arrival time, the process transitions to the READY state
-                if (processes[i].arrival_time == clock)
+                if (processes[i].arrival_time <= clock )
                 {
+
+
+                    if(memory_scheme != 0 && memory_manager(partitions,ALLOCATE,&processes[i], memory_scheme) == -1){
+                        continue;
+                    }
+
+                    printf("new process with id %d has been allocated!\n" , processes[i].pid);
+
+                    for (int j = 0; j < 4; j++)
+                    {
+
+                        for (int k = 0; k < 2; k++)
+                        {
+
+                            printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
+                        }
+                    }
+
+                    getchar();
+
                     //saves process's old state
                     States prevState = processes[i].state;
 
@@ -666,6 +734,10 @@ int main(int argc, char *argv[])
 
                     //prints transition to output file
                     printTransition(outputFile, clock, processes[i], prevState);
+
+                    if( memory_scheme != 0){
+                        print_memory_information(outputFile, partitions, memory_scheme);
+                    }
                 }
             }
             //if the process is in the RUNNING state
@@ -687,6 +759,24 @@ int main(int argc, char *argv[])
 
                     //prints transition to output file
                     printTransition(outputFile, clock, processes[i], prevState);
+
+                    memory_manager(partitions,FREE, &processes[i], memory_scheme);
+
+                    printf("Process %d is terminating", processes[i].pid);
+
+                    printf("Printing memory partition... \n");
+
+                    for (int j = 0; j < 4; j++)
+                    {
+
+                        for (int k = 0; k < 2; k++)
+                        {
+
+                            printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
+                        }
+                    }
+
+                    getchar();
                 }
                 //if a running process needs IO, it transitions to the WAITING state
                 else if (processes[i].current_time_until_IO == 0)
@@ -793,7 +883,7 @@ int main(int argc, char *argv[])
             //if the process is in the TERMINATED state
             else if (processes[i].state == TERMINATED)
             {
-
+                
                 // Nothing to do with a terminated process
                 continue;
             }
@@ -854,6 +944,102 @@ void printTransition(FILE *outputFile, int clock, process_t process, States prev
     fprintf(outputFile, " %d %d %s %s \n", clock, process.pid, getStringFromState((States)prevState), getStringFromState((States)process.state));
 };
 
+
+
+void print_memory_information(FILE *outputFile, int partitions[4][2] , int memory_scheme){
+    
+
+    //
+    //  **********************
+    //  Total Memory Used: %d MB | Free Memory Available: %d MB | Usable Memory: MB
+    //
+    //  Partitions Available: 
+    //  Partition 1 (%d MB) Available? Yes/No
+    //  Partition 2 (%d MB) Available? Yes/No
+    //  Partition 3 (%d MB) Available? Yes/No
+    //  Partition 4 (%d MB) Available? Yes/No
+    //  ***************************
+    //
+    //
+    //
+
+
+        printf("Printing memory partition... \n");
+
+        for(int j = 0; j < 4; j++){
+
+            for(int k = 0; k < 2; k++){
+
+               printf("partition [%d] [%d]  is %d\n", j, k, partitions[j][k]);
+            }
+        }
+    
+
+    //variable for calculating the amount of free memory available
+    int total_free_memory_available = 0;
+
+    //variable for calculating the amount of usable memory available
+    int total_usable_memory_available = 0;
+
+    //variable for calculating the amount of used memory
+    int memory_used = 0;
+
+    //for loop that iterates through the partitions
+    for (int i = 0; i < 4; i++)
+    {
+        //adds the remaining space in each partition to total_free_memory_available
+        total_free_memory_available += partitions[i][0];
+
+        //adds the memory used by calculating the difference between the capacity of each partition and 
+        //the current remaining space (depends on the memory portions assigned)
+        if(memory_scheme == 1){
+            memory_used += (MEMORY_SCHEME_1[i][0] - partitions[i][0]);
+        }else{
+            memory_used += (MEMORY_SCHEME_2[i][0] - partitions[i][0]);
+        }
+
+        //adds the remaining space in each availble partition to total_usable_memory_available
+        //after checking if the partition is currently usable
+        if(partitions[i][1] == -1){
+            total_usable_memory_available += partitions[i][0];
+        }
+    }
+
+
+    //prints formatted information to the file
+    fprintf(outputFile,"\n************************ \n");
+
+    fprintf(outputFile,"Total Memory Used: %d MB | Free Memory Available: %d MB | Usable Memory: %d MB \n", memory_used, total_free_memory_available, total_usable_memory_available);
+
+    fprintf(outputFile,"Partitions Available: \n");
+
+    // string for printing availability
+    char availability[10];
+
+    //for loop that iterates through all the partions
+    for(int i = 0; i < 4 ; i++){
+
+        //sets the availability to "Yes" if the partion is available and "No" if the partition is not available.
+        if(partitions[i][1] == -1){
+            strcpy(availability,"Yes");
+        }else{
+            strcpy(availability,"No");
+        }
+
+        //prints out the availablitiy information of the partition
+        if(memory_scheme == 1){
+           fprintf(outputFile,"Partition %d  %d MB/(%d MB) Available? %s \n", i , partitions[i][0] , MEMORY_SCHEME_1[i][0],  availability );
+        }else{
+           fprintf(outputFile,"Partition %d  %d MB/(%d MB) Available? %s \n", i , partitions[i][0] , MEMORY_SCHEME_2[i][0], availability );
+        }
+        
+    }
+
+    fprintf(outputFile,"************************ \n\n");
+
+}
+
+
 //Function to count the number of processes in the input file
 //parameter is a string of the name of the inputFile
 //returns the number of processes found in the input file (assuming each line represents a process)
@@ -905,8 +1091,78 @@ bool isDone(process_t *processes, int processCount)
     return true;
 }
 
-int memory_manager(int memory_required, int scheme){
-    static int memory[4][2];
+
+//function for allocating memory or freeing memory from partitions
+//parameters are a partition array, the command the partition is doing, and the process
+//that is being allocated or freed from memory
+//returns 0 if successful in allocating memory and returns -1 if there was no space for the process in memory
+//returns 2 if successful in freeing memory
+int memory_manager(int partitions[][2], int command, process_t* process, int memory_scheme ){
+
+    //memory manager attempts to allocates memory if it receives the allocate command
+    if(command == ALLOCATE){
+
+        printf("Allocating for process %d\n ", process->pid);
+
+        //sets initial value for partition_for_process
+        int partition_for_process = -1;
+
+        for(int i = 0; i < 4; i++){
+
+            if( partitions[i][1] == -1 && process->memory_needed <= partitions[i][0]){
+                partition_for_process = i;
+
+                break;
+            }
+        }
+
+        // if partition_for_process is at the initial value, the memory manager couldn't find space for the process
+        if(partition_for_process == -1){
+
+            printf("couldn't find memory for process %d \n", process->pid);
+
+            //returns -1 because the memory manager couldn't find space for the process
+            return -1;
+
+
+            //memory manager found space for the process
+        }else{
+            
+            printf("Found memory for process %d in partition %d\n", process->pid, partition_for_process);
+            //memory manager updates the information about memory usage within the partition
+            partitions[partition_for_process][0] -= process->memory_needed;
+
+            //memory manager updates the information about availability within the partition
+            partitions[partition_for_process][1] = 1;
+
+            //memory manager updates the information about memory position within the process
+            process->partition_used = partition_for_process;
+
+            return 0;
+        }
+
+
+    //memory manager attempts to free memory if it receives the allocate command
+    //used for freeing memory from terminated processes
+    }else if(command == FREE){
+
+        //frees memory based on the current memory scheme
+        if(memory_scheme == 1){
+            partitions[process->partition_used][0] = MEMORY_SCHEME_1[process->partition_used][0]; 
+            partitions[process->partition_used][1] = -1;
+        }else{
+            partitions[process->partition_used][0] = MEMORY_SCHEME_2[process->partition_used][0]; 
+            partitions[process->partition_used][1] = -1;
+        }
+
+        return 2;
+
+    //if the memory manager gets an unknown command
+    }else{
+        perror("Memory manager could not handle unknown command");
+        exit(1);
+    }
+
 }
 
 
@@ -933,10 +1189,11 @@ void print_process_details(process_t process)
 }
 
 //function for reading and practing an input file
-//parameters are an array of processes and a string for the name of the input file
+//parameters are an array of processes , a string for the name of the input file, and the memory scheme
 //returns nothing
 //ASSUMES : there is no blank lines in the input file
-void readInputFile(process_t *processes, char *inputFile)
+//If memory scheme is 0, ASSUMES no memory requirement for the processes
+void readInputFile(process_t *processes, char *inputFile, int memory_scheme)
 {
     char str[100];                //To store the text contained in each line
     const char truncate[2] = " "; //In-line separator
@@ -983,8 +1240,14 @@ void readInputFile(process_t *processes, char *inputFile)
             else if (input_parameter == 4)
             {
                 processes[process_position].IO_duration = int_token;
-            }else if (input_parameter == 5){
+            }
+            else if (input_parameter == 5)
+            {
                 processes[process_position].initial_priority = int_token;
+            }
+            else if ( memory_scheme != 0 && input_parameter == 6)
+            {
+                processes[process_position].memory_needed = int_token;
             }
 
             token = strtok(NULL, truncate); //Reset token
@@ -999,6 +1262,7 @@ void readInputFile(process_t *processes, char *inputFile)
         processes[process_position].current_time_until_IO_is_finished = processes[process_position].IO_duration;
         processes[process_position].current_time_until_IO = processes[process_position].IO_frequency;
         processes[process_position].effective_priority = processes[process_position].initial_priority;
+        processes[process_position].partition_used = -1;
 
         input_parameter = 0; //Reset input parameter counter
         process_position++;  //Increment the process position counter to point to the next process in the array of processes
